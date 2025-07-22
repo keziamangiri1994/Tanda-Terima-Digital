@@ -1,0 +1,119 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tanda Terima Digital</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    input, textarea, button {
+      display: block;
+      margin: 10px 0;
+      width: 100%;
+      padding: 10px;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      margin-top: 10px;
+    }
+    video, img {
+      width: 100%;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tanda Terima Digital</h1>
+  <form id="receiptForm">
+    <label>Nama Penerima</label>
+    <input type="text" id="nama" required />
+
+    <label>Nomor Paket / Resi</label>
+    <input type="text" id="resi" required />
+
+    <label>Barang yang diterima</label>
+    <input type="text" id="barang" required />
+
+    <label>Alamat</label>
+    <textarea id="alamat" required></textarea>
+
+    <label>Ambil Foto Bukti</label>
+    <video id="video" autoplay></video>
+    <button type="button" onclick="takePhoto()">Ambil Foto</button>
+    <canvas id="photoCanvas" width="320" height="240"></canvas>
+
+    <label>Tanda Tangan Digital</label>
+    <canvas id="signature" width="320" height="100"></canvas>
+    <button type="button" onclick="clearSignature()">Bersihkan Tanda Tangan</button>
+
+    <button type="submit">Simpan dan Unduh PDF</button>
+  </form>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const photoCanvas = document.getElementById('photoCanvas');
+    const signatureCanvas = document.getElementById('signature');
+    const ctx = signatureCanvas.getContext('2d');
+    let drawing = false;
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      });
+
+    function takePhoto() {
+      const context = photoCanvas.getContext('2d');
+      context.drawImage(video, 0, 0, photoCanvas.width, photoCanvas.height);
+    }
+
+    signatureCanvas.addEventListener('mousedown', () => drawing = true);
+    signatureCanvas.addEventListener('mouseup', () => drawing = false);
+    signatureCanvas.addEventListener('mousemove', drawSignature);
+
+    function drawSignature(e) {
+      if (!drawing) return;
+      const rect = signatureCanvas.getBoundingClientRect();
+      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+      ctx.stroke();
+    }
+
+    function clearSignature() {
+      ctx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+      ctx.beginPath();
+    }
+
+    document.getElementById('receiptForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      const nama = document.getElementById('nama').value;
+      const resi = document.getElementById('resi').value;
+      const barang = document.getElementById('barang').value;
+      const alamat = document.getElementById('alamat').value;
+      const tanggal = new Date().toLocaleString();
+
+      doc.text(`Tanda Terima Digital`, 10, 10);
+      doc.text(`Tanggal: ${tanggal}`, 10, 20);
+      doc.text(`Nama: ${nama}`, 10, 30);
+      doc.text(`Resi: ${resi}`, 10, 40);
+      doc.text(`Barang: ${barang}`, 10, 50);
+      doc.text(`Alamat: ${alamat}`, 10, 60);
+
+      const photoData = photoCanvas.toDataURL('image/jpeg');
+      const signData = signatureCanvas.toDataURL('image/png');
+
+      doc.addImage(photoData, 'JPEG', 10, 70, 50, 40);
+      doc.addImage(signData, 'PNG', 70, 70, 60, 40);
+
+      doc.save(`TandaTerima_${resi}.pdf`);
+    });
+  </script>
+</body>
+</html>
